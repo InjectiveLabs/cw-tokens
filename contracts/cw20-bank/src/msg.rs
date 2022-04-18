@@ -74,23 +74,6 @@ pub enum ExecuteMsg {
     /// BankToCw20 is a base message to convert bank tokens to Cw20 tokens
     BankToCw20 {},
 
-    /// Bond will bond all staking tokens sent with the message and release derivative tokens
-    Bond {},
-    /// Unbond will "burn" the given amount of derivative tokens and send the unbonded
-    /// staking tokens to the message sender (after exit tax is deducted)
-    Unbond { amount: Uint128 },
-    /// Claim is used to claim your native tokens that you previously "unbonded"
-    /// after the chain-defined waiting period (eg. 3 weeks)
-    Claim {},
-    /// Reinvest will check for all accumulated rewards, withdraw them, and
-    /// re-bond them to the same validator. Anyone can call this, which updates
-    /// the value of the token (how much under custody).
-    Reinvest {},
-    /// _BondAllTokens can only be called by the contract itself, after all rewards have been
-    /// withdrawn. This is an example of using "callbacks" in message flows.
-    /// This can only be invoked by the contract itself as a return from Reinvest
-    _BondAllTokens {},
-
     /// Implements CW20. Transfer is a base message to move tokens to another account without triggering actions
     Transfer { recipient: String, amount: Uint128 },
     /// Implements CW20. Burn is a base message to destroy tokens forever
