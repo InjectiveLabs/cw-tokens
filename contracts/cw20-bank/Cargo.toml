@@ -1,13 +1,8 @@
 [package]
 name = "cw20-bank"
-version = "0.13.2"
-authors = ["Ethans Freys <ethanfrey@users.noreply.github.com>"]
+version = "0.1.0"
+authors = ["Venkatesh Mankena <mankenavenkatesh@gmail.com>"]
 edition = "2018"
-description = "Implement simple staking derivatives as a cw20 token"
-license = "Apache-2.0"
-repository = "https://github.com/CosmWasm/cw-tokens"
-homepage = "https://cosmwasm.com"
-documentation = "https://docs.cosmwasm.com"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,6 +13,13 @@ crate-type = ["cdylib", "rlib"]
 backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
+
+[package.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.6
+"""
 
 [dependencies]
 cw-utils = { version = "0.13.2" }
