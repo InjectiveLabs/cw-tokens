@@ -9,27 +9,6 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Validator '{validator}' not in current validator set")]
-    NotInValidatorSet { validator: String },
-
-    #[error("Different denominations in bonds: '{denom1}' vs. '{denom2}'")]
-    DifferentBondDenom { denom1: String, denom2: String },
-
-    #[error("Stored bonded {stored}, but query bonded {queried}")]
-    BondedMismatch { stored: Uint128, queried: Uint128 },
-
-    #[error("No {denom} tokens sent")]
-    EmptyBalance { denom: String },
-
-    #[error("Must unbond at least {min_bonded} {denom}")]
-    UnbondTooSmall { min_bonded: Uint128, denom: String },
-
-    #[error("Insufficient balance in contract to process claim")]
-    BalanceTooSmall {},
-
-    #[error("No claims that can be released currently")]
-    NothingToClaim {},
-
     #[error("Cannot set to own account")]
     CannotSetOwnAccount {},
 

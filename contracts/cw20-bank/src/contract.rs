@@ -1,29 +1,24 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Binary, Decimal, Deps, DepsMut, DistributionMsg, Env,
-    MessageInfo, QuerierWrapper, Response, StakingMsg, StdError, StdResult, Uint128, WasmMsg,
+    coins, to_binary, Addr, BankMsg, Binary, Decimal, Deps, DepsMut, Env,
+    MessageInfo, QuerierWrapper, Response,  StdError, StdResult, Uint128, WasmMsg,
 };
 
 use cw2::set_contract_version;
-use cw20::{
-    BalanceResponse, Cw20Coin,  Cw20ReceiveMsg, DownloadLogoResponse, EmbeddedLogo, Logo, LogoInfo,
-    MarketingInfoResponse, MinterResponse, TokenInfoResponse,
-};
+use cw20::{Cw20Coin};
 use cw20_base::allowances::{
     execute_burn_from, execute_decrease_allowance, execute_increase_allowance, execute_send_from,
-    execute_transfer_from, query_allowance,
+    execute_transfer_from,
 };
 use cw20_base::contract::{
-    execute_burn, execute_mint, execute_send, execute_transfer, query_balance, query_token_info,
+    execute_burn, execute_send, execute_transfer, query_balance,
 };
 use cw20_base::state::{MinterData,BALANCES};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, InvestmentResponse, QueryMsg};
-use crate::state::{TokenInfo, TOKEN_INFO, InvestmentInfo, Supply, CLAIMS, INVESTMENT, TOTAL_SUPPLY};
-
-const FALLBACK_RATIO: Decimal = Decimal::one();
+use crate::msg::{ExecuteMsg, InstantiateMsg};
+use crate::state::{TokenInfo, TOKEN_INFO};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw20-bank";

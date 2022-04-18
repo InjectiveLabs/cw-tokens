@@ -123,11 +123,6 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    /// Claims shows the number of tokens this address can access when they are done unbonding
-    Claims { address: String },
-    /// Investment shows metadata on the staking info of the contract
-    Investment {},
-
     /// Implements CW20. Returns the current balance of the given address, 0 if unset.
     Balance { address: String },
     /// Implements CW20. Returns metadata on the contract - name, decimals, supply, etc.
@@ -135,22 +130,4 @@ pub enum QueryMsg {
     /// Implements CW20 "allowance" extension.
     /// Returns how much spender can use from owner account, 0 if unset.
     Allowance { owner: String, spender: String },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InvestmentResponse {
-    pub token_supply: Uint128,
-    pub staked_tokens: Coin,
-    // ratio of staked_tokens / token_supply (or how many native tokens that one derivative token is nominally worth)
-    pub nominal_value: Decimal,
-
-    /// owner created the contract and takes a cut
-    pub owner: String,
-    /// this is how much the owner takes as a cut when someone unbonds
-    pub exit_tax: Decimal,
-    /// All tokens are bonded to this validator
-    pub validator: String,
-    /// This is the minimum amount we will pull out to reinvest, as well as a minimum
-    /// that can be unbonded (to avoid needless staking tx)
-    pub min_withdrawal: Uint128,
 }
