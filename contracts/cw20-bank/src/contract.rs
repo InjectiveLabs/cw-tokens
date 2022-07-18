@@ -1,8 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Binary, Decimal, Deps, DepsMut, Env,
+    Coin, attr, coins, to_binary, Addr, BankMsg, Binary, Decimal, Deps, DepsMut, Env,
     MessageInfo, QuerierWrapper, Response,  StdError, StdResult, Uint128, WasmMsg,
+};
+
+use injective_cosmwasm::{
+    create_mint_tokens_msg,create_burn_tokens_msg, InjectiveMsgWrapper, 
 };
 
 use cw2::set_contract_version;
@@ -126,62 +130,80 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     match msg {
         ExecuteMsg::Cw20ToBank { amount } => execute_cw20_to_bank(deps, env, info, amount),
         ExecuteMsg::BankToCw20 {} => execute_bank_to_cw20(deps, env, info),
 
-        // these all come from cw20-base to implement the cw20 standard
-        ExecuteMsg::Transfer { recipient, amount } => {
-            Ok(execute_transfer(deps, env, info, recipient, amount)?)
+        // // these all come from cw20-base to implement the cw20 standard
+        ExecuteMsg::Transfer { recipient, amount } => {            
+            let base_result = execute_transfer(deps, env, info, recipient, amount);
+            return convert_baseres_to_injres(base_result)
         }
-        ExecuteMsg::Burn { amount } => Ok(execute_burn(deps, env, info, amount)?),
+        ExecuteMsg::Burn {  amount } => {            
+            let base_result = execute_burn(deps, env, info, amount);
+            return convert_baseres_to_injres(base_result)
+        }
+
         ExecuteMsg::Send {
             contract,
             amount,
             msg,
-        } => Ok(execute_send(deps, env, info, contract, amount, msg)?),
+        } => {            
+            let base_result = execute_send(deps, env, info, contract, amount, msg);
+            return convert_baseres_to_injres(base_result)
+        }
+
         ExecuteMsg::IncreaseAllowance {
             spender,
             amount,
             expires,
-        } => Ok(execute_increase_allowance(
-            deps, env, info, spender, amount, expires,
-        )?),
+        } => {            
+            let base_result = execute_increase_allowance(deps, env, info, spender, amount, expires);
+            return convert_baseres_to_injres(base_result)
+        }
+        
         ExecuteMsg::DecreaseAllowance {
             spender,
             amount,
             expires,
-        } => Ok(execute_decrease_allowance(
-            deps, env, info, spender, amount, expires,
-        )?),
+        } => {            
+            let base_result = execute_decrease_allowance(deps, env, info, spender, amount, expires);
+            return convert_baseres_to_injres(base_result)
+        }
+
         ExecuteMsg::TransferFrom {
             owner,
             recipient,
             amount,
-        } => Ok(execute_transfer_from(
-            deps, env, info, owner, recipient, amount,
-        )?),
-        ExecuteMsg::BurnFrom { owner, amount } => {
-            Ok(execute_burn_from(deps, env, info, owner, amount)?)
+        } => {            
+            let base_result = execute_transfer_from(deps, env, info, owner, recipient, amount);
+            return convert_baseres_to_injres(base_result)
         }
+        
+        ExecuteMsg::BurnFrom {owner, amount} => {            
+            let base_result = execute_burn_from(deps, env, info, owner, amount);
+            return convert_baseres_to_injres(base_result)
+        }
+        
         ExecuteMsg::SendFrom {
             owner,
             contract,
             amount,
             msg,
-        } => Ok(execute_send_from(
-            deps, env, info, owner, contract, amount, msg,
-        )?),
+        } => {            
+            let base_result = execute_send_from(deps, env, info, owner, contract, amount, msg);
+            return convert_baseres_to_injres(base_result)
+        }
     }
 }
 
 pub fn execute_cw20_to_bank(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     amount: Uint128,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     if amount == Uint128::zero() {
         return Err(ContractError::InvalidZeroAmount {});
     }
@@ -212,20 +234,24 @@ pub fn execute_cw20_to_bank(
     // Create and submit BankTransfer sub message. Here sender is the contract address.
     let config = TOKEN_INFO.load(deps.storage)?;
 
-    let bank_transfer = BankMsg::Send {
-        to_address: info.sender.to_string(),
-        amount: coins(amount.u128(), config.bank_denom.unwrap()),
-    };
+    let sender = env.contract.address.to_string();
+    let mint_to_address =  info.sender.to_string();
 
-    let res = Response::new().add_message(bank_transfer);
+    let mint_tokens_msg = create_mint_tokens_msg(
+        sender.clone(),        
+        Coin::new(amount.u128(), config.bank_denom.unwrap()),
+        mint_to_address,
+    );    
+
+    let res = Response::new().add_message(mint_tokens_msg);
     Ok(res)
 }
 
 pub fn execute_bank_to_cw20(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let mut config = TOKEN_INFO.load(deps.storage)?;
 
     // Make sure the user has transferred same bank denom to the contract address.
@@ -258,9 +284,33 @@ pub fn execute_bank_to_cw20(
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
 
-    let res = Response::new()
-        .add_attribute("action", "bank_to_cw20")
-        .add_attribute("from", info.sender)
-        .add_attribute("amount", amount);
-    Ok(res)
+    let sender = env.contract.address.to_string();
+
+    let burn_tokens_msg = create_burn_tokens_msg(
+        sender.clone(),                
+        Coin::new(amount.u128(), config.bank_denom.unwrap()),
+        sender,
+    );
+
+    Ok(Response::new()
+    .add_message(burn_tokens_msg)
+    .add_attributes(vec![
+        attr("denom", "denom"),
+        attr("burn_from_address", "burn_from_address"),        
+    ]))
+}
+
+pub fn convert_baseres_to_injres(base_result: Result<Response, cw20_base::ContractError>) -> Result<Response<InjectiveMsgWrapper>, ContractError>{
+    match base_result {
+        Ok(r) => {                    
+            let mut inj_res:Response<InjectiveMsgWrapper> = Response::new();
+            inj_res.attributes = r.attributes;
+            inj_res.data = r.data;
+            inj_res.events = r.events;                    
+            Ok(inj_res)
+        }
+        Err(e) => {                    
+            return Err(ContractError::from(e));                    
+        }
+    }
 }
