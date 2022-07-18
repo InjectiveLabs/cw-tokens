@@ -136,85 +136,67 @@ pub fn execute(
         ExecuteMsg::BankToCw20 {} => execute_bank_to_cw20(deps, env, info),
 
         // // these all come from cw20-base to implement the cw20 standard
-        ExecuteMsg::Transfer { recipient, amount } => {
-            Ok(execute_transfer(deps, env, info, recipient, amount)?)
+        ExecuteMsg::Transfer { recipient, amount } => {            
+            let base_result = execute_transfer(deps, env, info, recipient, amount);
+            return convert_baseres_to_injres(base_result)
         }
-        // ExecuteMsg::Burn { amount } => Ok(execute_burn(deps, env, info, amount)?),
-        // ExecuteMsg::Send {
-        //     contract,
-        //     amount,
-        //     msg,
-        // } => Ok(execute_send(deps, env, info, contract, amount, msg)?),
-        // ExecuteMsg::IncreaseAllowance {
-        //     spender,
-        //     amount,
-        //     expires,
-        // } => Ok(execute_increase_allowance(
-        //     deps, env, info, spender, amount, expires,
-        // )?),
-        // ExecuteMsg::DecreaseAllowance {
-        //     spender,
-        //     amount,
-        //     expires,
-        // } => Ok(execute_decrease_allowance(
-        //     deps, env, info, spender, amount, expires,
-        // )?),
-        // ExecuteMsg::TransferFrom {
-        //     owner,
-        //     recipient,
-        //     amount,
-        // } => Ok(execute_transfer_from(
-        //     deps, env, info, owner, recipient, amount,
-        // )?),
-        // ExecuteMsg::BurnFrom { owner, amount } => {
-        //     Ok(execute_burn_from(deps, env, info, owner, amount)?)
-        // }
-        // ExecuteMsg::SendFrom {
-        //     owner,
-        //     contract,
-        //     amount,
-        //     msg,
-        // } => Ok(execute_send_from(
-        //     deps, env, info, owner, contract, amount, msg,
-        // )?),
+        ExecuteMsg::Burn {  amount } => {            
+            let base_result = execute_burn(deps, env, info, amount);
+            return convert_baseres_to_injres(base_result)
+        }
+
+        ExecuteMsg::Send {
+            contract,
+            amount,
+            msg,
+        } => {            
+            let base_result = execute_send(deps, env, info, contract, amount, msg);
+            return convert_baseres_to_injres(base_result)
+        }
+
+        ExecuteMsg::IncreaseAllowance {
+            spender,
+            amount,
+            expires,
+        } => {            
+            let base_result = execute_increase_allowance(deps, env, info, spender, amount, expires);
+            return convert_baseres_to_injres(base_result)
+        }
+        
+        ExecuteMsg::DecreaseAllowance {
+            spender,
+            amount,
+            expires,
+        } => {            
+            let base_result = execute_decrease_allowance(deps, env, info, spender, amount, expires);
+            return convert_baseres_to_injres(base_result)
+        }
+
+        ExecuteMsg::TransferFrom {
+            owner,
+            recipient,
+            amount,
+        } => {            
+            let base_result = execute_transfer_from(deps, env, info, owner, recipient, amount);
+            return convert_baseres_to_injres(base_result)
+        }
+        
+        ExecuteMsg::BurnFrom {owner, amount} => {            
+            let base_result = execute_burn_from(deps, env, info, owner, amount);
+            return convert_baseres_to_injres(base_result)
+        }
+        
+        ExecuteMsg::SendFrom {
+            owner,
+            contract,
+            amount,
+            msg,
+        } => {            
+            let base_result = execute_send_from(deps, env, info, owner, contract, amount, msg);
+            return convert_baseres_to_injres(base_result)
+        }
     }
 }
-
-
-pub fn execute_transfer_wrapper(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    recipient: String,
-    amount: Uint128,
-) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
-    if amount == Uint128::zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    let rcpt_addr = deps.api.addr_validate(&recipient)?;
-
-    BALANCES.update(
-        deps.storage,
-        &info.sender,
-        |balance: Option<Uint128>| -> StdResult<_> {
-            Ok(balance.unwrap_or_default().checked_sub(amount)?)
-        },
-    )?;
-    BALANCES.update(
-        deps.storage,
-        &rcpt_addr,
-        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
-    )?;
-
-    let res = Response::new()
-        .add_attribute("action", "transfer")
-        .add_attribute("from", info.sender)
-        .add_attribute("to", recipient)
-        .add_attribute("amount", amount);
-    Ok(res)
-}
-
 
 pub fn execute_cw20_to_bank(
     deps: DepsMut,
@@ -302,12 +284,6 @@ pub fn execute_bank_to_cw20(
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
 
-    // let res = Response::new()
-    //     .add_attribute("action", "bank_to_cw20")
-    //     .add_attribute("from", info.sender)
-    //     .add_attribute("amount", amount);
-    // Ok(res)
-
     let sender = env.contract.address.to_string();
 
     let burn_tokens_msg = create_burn_tokens_msg(
@@ -322,4 +298,19 @@ pub fn execute_bank_to_cw20(
         attr("denom", "denom"),
         attr("burn_from_address", "burn_from_address"),        
     ]))
+}
+
+pub fn convert_baseres_to_injres(base_result: Result<Response, cw20_base::ContractError>) -> Result<Response<InjectiveMsgWrapper>, ContractError>{
+    match base_result {
+        Ok(r) => {                    
+            let mut inj_res:Response<InjectiveMsgWrapper> = Response::new();
+            inj_res.attributes = r.attributes;
+            inj_res.data = r.data;
+            inj_res.events = r.events;                    
+            Ok(inj_res)
+        }
+        Err(e) => {                    
+            return Err(ContractError::from(e));                    
+        }
+    }
 }
